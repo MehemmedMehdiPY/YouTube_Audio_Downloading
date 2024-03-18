@@ -4,6 +4,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from time import sleep
 from datetime import datetime
+import requests
 
 """
 * You should have a filepath to the set of channel links. Please, adjust the code based on your environment in the current directory.
@@ -12,14 +13,14 @@ from datetime import datetime
 
 # You can adjust your preferred browser
 # driver = webdriver.Chrome()
-driver = webdriver.Firefox()
+driver = webdriver.Chrome()
 
 # Reading links
 with open('links/channel_links.txt', 'r') as fo:
     channel_links = fo.read().split('\n')
 
 # The number of iterations to scroll down the page so that more contents will be visible on browser.
-iterations = 1
+iterations = 20
 
 # Wait parameter for each scrolling iteration.
 wait = 2
@@ -28,6 +29,12 @@ video_data = []
 total_duration = 0
 
 for link in channel_links:
+    response = requests.get(link)
+    if not response.ok:
+        channel_name = link.split('/')[-2][1:]
+        print('Channel {} does not exist'.format(channel_name))
+        continue
+
     driver.get(link)
     sleep(1)
 
@@ -38,13 +45,17 @@ for link in channel_links:
     print("Scrolling down the page...")
 
     # Scrolling down 'iterations' times
+    prev_height = 0
     for _ in range(iterations):
         height = driver.execute_script("return document.documentElement.scrollHeight")
         driver.execute_script("window.scrollTo(0, arguments[0]);", height)
         sleep(wait)
         print(height)
+        if prev_height == height:
+            break
+        prev_height = height
 
-    print("Executing scripts for titles, links...")
+    print("Executing scripts for links...")
     
     link_elements = driver.find_elements(By.ID, "video-title-link")
     
@@ -73,6 +84,8 @@ for link in channel_links:
     
     print('{} Hours {} Minutes {} Seconds\n'.format(hour, minute, second))
 
-with open('links/links.txt', 'w') as fo:
-    for video_link in video_data:
-        fo.write(video_link + '\n')
+    with open('links/links.txt', 'a') as fo:
+        for video_link in video_data:
+            fo.write(video_link + '\n')
+    
+    video_data.clear()
